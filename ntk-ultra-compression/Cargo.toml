@@ -1,0 +1,6 @@
+[package]
+name = "ntk-ultra-compression"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
