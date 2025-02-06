@@ -2,7 +2,7 @@
 by  Litissia Ben Mohand
  */
 
-use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
+use image::GenericImageView;
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -10,7 +10,7 @@ use std::io::{Read, Write};
 pub fn encode(img_path: &str, file_path: &str, output_path: &str)
 {
     //load the image
-    let mut img = image::open(img_path).expect("can't load image");
+    let img = image::open(img_path).expect("can't load image");
     //convert the img to RGBA format for pixel manipulation
     let mut pixels = img.to_rgba8();
     //open the file that will be hidden
@@ -32,13 +32,16 @@ pub fn encode(img_path: &str, file_path: &str, output_path: &str)
     }
     for (_,_, pixel) in pixels.enumerate_pixels_mut()
     {
-        if bit_index >= bits.len()
+        for i in 0..=2
         {
-            break;
-        }
-        // modify the least significant bit (LSB) of the red channel to store a bit from the file
-        pixel[0] = (pixel[0] & 0xFE) | bits[bit_index];
+            if bit_index >= bits.len()
+            {
+                break;
+            }
+        // modify the least significant bit (LSB) of the each channel to store a bit from the file
+        pixel[i] = (pixel[i] & 0xFE) | bits[bit_index];
         bit_index += 1;
+        }
     }
 
     pixels.save(output_path).expect("couldn't save the image");
@@ -47,18 +50,20 @@ pub fn encode(img_path: &str, file_path: &str, output_path: &str)
 
 
 
-pub fn decode(img_path: &str, output_file_path: &str) -> Result<(), String> {
+pub fn decode(img_path: &str, output_file_path: &str) {
     // load image 
-    let img = image::open(img_path).map_err(|e| format!("Impossible de charger l'image : {}", e))?;
-    let pixels = img.to_rgba8(); // Convertit l'image en RGBA (format modifiable)
+    let img = image::open(img_path).expect(&format!("can't load image : {}",img_path));
+    let pixels = img.to_rgba8();
 
     // extract the hidden bits from the image 
     let mut bits = Vec::new();
 
     for (_, _, pixel) in pixels.enumerate_pixels() {
-        // On récupère le bit caché dans le premier composant du pixel (le canal alpha)
-        let bit = pixel[0] & 0x01; // Masque les autres bits et récupère le bit caché
-        bits.push(bit);
+        for i in 0..=2 
+        {
+            let bit = pixel[i] & 0x01; 
+            bits.push(bit);
+        }
     }
 
     //group bits into bytes
@@ -73,15 +78,14 @@ pub fn decode(img_path: &str, output_file_path: &str) -> Result<(), String> {
     if let Some(pos) = file_data.windows(end_marker.len()).position(|window| window == end_marker) {
         file_data.truncate(pos);
     } else {
-        return Err("end_marker wasn't found".to_string());
+        println!("end_marker wasn't found");
     }
 
     // create an output file and save data in it 
     let mut output_file = File::create(output_file_path)
-        .map_err(|e| format!("Failed to create output file: {}", e))?;
-    output_file.write_all(&file_data).map_err(|e| format!("Error writing to output file: {}", e))?;
+        .expect(&format!("Failed to create output file: {}", output_file_path));
+    output_file.write_all(&file_data).expect(&format!("Error writing to output file"));
 
     println!("The data has been successfully extracted and saved to: {}", output_file_path);
-    Ok(())
 }
 
