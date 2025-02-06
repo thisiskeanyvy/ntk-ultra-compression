@@ -62,9 +62,9 @@ Ce projet est sous licence BSD 3-Clause. Voir le fichier [LICENSE](LICENSE) pour
 Auteurs
 -------
 
-*   Nathan Pelleti
+*   Nathan Pelletti
 *   Thomas Demesse
 *   Keany Vy Khun
-*   Litissia Ben‐Mohand
+*   Litissia Ben Mohand
 
 Développé dans le cadre d'un projet à l'École pour l'informatique et les techniques avancées.
