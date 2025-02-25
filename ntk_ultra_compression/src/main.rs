@@ -1,5 +1,20 @@
+//by keany-vy.khun
 use ntk_ultra_compression::security::stegano::*;
 use ntk_ultra_compression::bzip2_compression::Bzip2::*;
+use std::process;
+use std::io::{self, Write};
+
+const RESET: &str = "\x1b[0m";
+const BOLD: &str = "\x1b[1m";
+//const DIM: &str = "\x1b[2m";
+const YELLOW: &str = "\x1b[33m";
+const RED: &str = "\x1b[31m";
+const GREEN: &str = "\x1b[32m";
+
+fn clear_screen() {
+    print!("\x1B[2J\x1B[1;1H");
+    io::stdout().flush().unwrap();
+}
 
 /*
 - Not Implemented (not_implemented) :
@@ -7,7 +22,33 @@ Just for developpement use and conception
 */
 
 fn not_implemented() {
-    println!("Function is not already implemented...");
+    println!("{}Cette fonction n'est pas encore implémentée...{}", YELLOW, RESET);
+}
+
+fn help_menu() {
+    println!("{}
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    Menu d'aide NTK Ultra-Compression                      ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║ Utilisation: ntk-ultra-compression <COMMANDE> [OPTIONS]                   ║
+║                                                                           ║
+║ Commandes:                                                                ║
+║   compress <fichier_entree>             Compresser le fichier d'entrée    ║
+║   extract <fichier_entree>              Extraire le fichier compressé     ║
+║   encrypt <fichier_entree>              Chiffrer le fichier d'entrée      ║
+║   decrypt <fichier_entree>              Déchiffrer le fichier d'entrée    ║
+║   hide <fichier_image> <fichier>        Cacher un fichier dans une image  ║
+║   unhide <fichier_image> <sortie>       Extraire le fichier caché         ║
+║   help                                  Afficher ce message d'aide        ║
+║                                                                           ║
+║ Options:                                                                  ║
+║   Des options supplémentaires peuvent être spécifiées après la commande.  ║
+║                                                                           ║
+║ Exemples:                                                                 ║
+║   ntk compress monfichier.txt                                             ║
+║   ntk extract monarchive.ntk                                              ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+    {}", BOLD, RESET);
 }
 
 /*
@@ -22,64 +63,67 @@ fn not_implemented() {
 fn parse_commands_line() {
     let args: Vec<String> = std::env::args().collect();
 
-    for (i, argument) in args.iter().enumerate() {
-        if i == 0 {
-            continue;
-        } else {
-            if i == 1 { // file operation treatment
-                if argument == "compress" {
-                    let file_path = &args[2];
+    if args.len() < 2 {
+        help_menu();
+        return;
+    }
 
-                    compress(file_path);
-                } else if argument == "extract" {
-                    let file_path = &args[2];
-                    let file_extension = file_path.split('.').last().unwrap_or("");
-
-                    decompress(file_path, file_extension);
-                } else if argument == "encrypt" {
-                    not_implemented();
-                } else if argument == "decrypt" {
-                    not_implemented();
-                } else if argument == "hide" {
-                    let img_path = &args[2];
-                    let file_path = &args[3];
-                    let output_path = format!("hidden-{}", img_path);
-
-                    //1st arg-> input img, 2nd arg -> file to hide, 3rd -> output img
-                    encode(img_path, file_path, &output_path);
-                } else if argument == "unhide" {
-                    let img_path = &args[2];
-                    let file_path = &args[3];
-
-                    //1st arg-> input img with hidden data, 2nd arg -> output file with data
-                    decode(img_path, file_path);
-                } else if argument == "help" || argument == "--help" {
-                    not_implemented();
-                } else {
-                    println!("Option does not exist...");
-                }
+    match args[1].as_str() {
+        "compress" => {
+            if args.len() < 3 {
+                println!("{}Erreur : Aucun fichier d'entrée spécifié pour la compression.{}", RED, RESET);
+                process::exit(1);
             }
+            println!("{}Compression du fichier en cours...{}", YELLOW, RESET);
+            compress(&args[2]);
+            println!("{}Compression terminée avec succès.{}", GREEN, RESET);
+        },
+        "extract" => {
+            if args.len() < 3 {
+                println!("{}Erreur : Aucun fichier d'entrée spécifié pour l'extraction.{}", RED, RESET);
+                process::exit(1);
+            }
+            println!("{}Extraction du fichier en cours...{}", YELLOW, RESET);
+            let file_extension = args[2].split('.').last().unwrap_or("");
+            decompress(&args[2], file_extension);
+            println!("{}Extraction terminée avec succès.{}", GREEN, RESET);
+        },
+        "encrypt" => not_implemented(),
+        "decrypt" => not_implemented(),
+        "hide" => {
+            if args.len() < 4 {
+                println!("{}Erreur : Arguments manquants pour l'opération de dissimulation.{}", RED, RESET);
+                process::exit(1);
+            }
+            println!("{}Dissimulation du fichier dans l'image...{}", YELLOW, RESET);
+            let output_path = format!("hidden-{}", args[2]);
 
-            // if i == 2 { // file or folder input
-            //     if argument.starts_with('/') {
-            //         println!("Folder");
-            //     } else {
-            //         println!("File");
-            //     }
-            // }
+            //1st arg-> input img, 2nd arg -> file to hide, 3rd -> output img
+            encode(&args[2], &args[3], &output_path);
+            println!("{}Fichier dissimulé avec succès.{}", GREEN, RESET);
+        },
+        "unhide" => {
+            if args.len() < 4 {
+                println!("{}Erreur : Arguments manquants pour l'opération de révélation.{}", RED, RESET);
+                process::exit(1);
+            }
+            println!("{}Extraction du fichier caché depuis l'image...{}", YELLOW, RESET);
 
-            // if i == 3 { // file output
-            //     not_implemented();
-            // }
-
-            // if i == 4 { // other configuration options
-            //     not_implemented();
-            // }
+            //1st arg-> input img with hidden data, 2nd arg -> output file with data
+            decode(&args[2], &args[3]);
+            println!("{}Fichier caché extrait avec succès.{}", GREEN, RESET);
+        },
+        "help" | "--help" => help_menu(),
+        _ => {
+            println!("{}Erreur : Commande inconnue '{}'.{}", RED, args[1], RESET);
+            help_menu();
+            process::exit(1);
         }
     }
 }
 
 fn main() {
-    println!("NTK Ultra-Compression");
+    clear_screen();
+    println!("{}NTK Ultra-Compression 1.0.0 ( https://ntk-ultra-compression.pages.dev/ ){}", BOLD, RESET);
     parse_commands_line();
 }
