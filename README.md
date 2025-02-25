@@ -70,7 +70,7 @@ Pour mettre à jour le logiciel vers la dernière version vous pouvez utiliser N
 $ git pull
 ``````
 
-<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-2.png" alt="install-2" style="zoom:80%;" />
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-2.png" alt="install-2" width="48%" />
 
 Licence
 -------
