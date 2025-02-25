@@ -50,11 +50,27 @@ Les taux de compression varient selon les types de fichiers, mais peuvent attein
 Compilation
 -----------
 
-Requiert Rust 1.55+
+Requiert Rust 1.55+ et cargo pour lancer NTK-Manager
 
 ``````bash
-$ cargo build --release
+$ cargo run
 ``````
+
+<p float="left">
+  <img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-1.png" alt="install-1" width="48%" />
+  <img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-3.png" alt="install-3" width="48%" />
+</p>
+
+Mises à jour
+-------
+
+Pour mettre à jour le logiciel vers la dernière version vous pouvez utiliser NTK-Manager ou le faire via l'outil git.
+
+``````bash
+$ git pull
+``````
+
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-2.png" alt="install-2" style="zoom:80%;" />
 
 Licence
 -------
