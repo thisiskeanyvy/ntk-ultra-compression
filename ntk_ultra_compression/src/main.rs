@@ -1,4 +1,5 @@
 use ntk_ultra_compression::security::stegano::*;
+use ntk_ultra_compression::bzip2_compression::Bzip2::*;
 
 /*
 - Not Implemented (not_implemented) :
@@ -27,9 +28,14 @@ fn parse_commands_line() {
         } else {
             if i == 1 { // file operation treatment
                 if argument == "compress" {
-                    not_implemented();
+                    let file_path = &args[2];
+
+                    compress(file_path);
                 } else if argument == "extract" {
-                    not_implemented();
+                    let file_path = &args[2];
+                    let file_extension = file_path.split('.').last().unwrap_or("");
+
+                    decompress(file_path, file_extension);
                 } else if argument == "encrypt" {
                     not_implemented();
                 } else if argument == "decrypt" {
