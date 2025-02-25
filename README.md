@@ -23,8 +23,10 @@ $ ntk compress <input_file> <output_file.ntk>
 `````
 
 ``````bash
-$ ntk extract <input_file.ntk> <output_file>`
+$ ntk extract <input_file.ntk> <output_file>
 ``````
+
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/cli-1.png" alt="cli-1" width="48%" />
 
 Algorithme
 ----------
