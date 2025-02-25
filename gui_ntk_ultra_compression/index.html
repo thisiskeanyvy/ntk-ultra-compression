@@ -1,43 +1,224 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="/src/styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
+<!--
+by keany-vy.khun
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NTK Ultra-Compression</title>
     <script type="module" src="/src/main.ts" defer></script>
-  </head>
+    <link rel="stylesheet" href="/src/core.min.css"/>
+    <link rel="stylesheet" href="/src/utilities.min.css" />
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 47.4% 11.2%;
+            --primary: 222.2 47.4% 11.2%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96.1%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --accent: 210 40% 96.1%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 47.4% 11.2%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 222.2 84% 4.9%;
+        }
 
-  <body>
-    <main class="container">
-      <h1>Welcome to Tauri</h1>
+        .dark {
+            --background: 240 10% 3.9%;
+            --foreground: 213 31% 91%;
+            --primary: 210 40% 98%;
+            --primary-foreground: 222.2 47.4% 1.2%;
+            --secondary: 222.2 47.4% 11.2%;
+            --secondary-foreground: 210 40% 98%;
+            --accent: 216 34% 17%;
+            --accent-foreground: 210 40% 98%;
+            --card: 240 10% 3.9%;
+            --card-foreground: 213 31% 91%;
+            --border: 216 34% 17%;
+            --input: 216 34% 17%;
+            --ring: 217.2 32.6% 17.5%;
+        }
 
-      <div class="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/src/assets/vite.svg" class="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img
-            src="/src/assets/tauri.svg"
-            class="logo tauri"
-            alt="Tauri logo"
-          />
-        </a>
-        <a href="https://www.typescriptlang.org/docs" target="_blank">
-          <img
-            src="/src/assets/typescript.svg"
-            class="logo typescript"
-            alt="typescript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+        html {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            cursor: auto;
+        }
 
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greet-msg"></p>
-    </main>
-  </body>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container {
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .file-list {
+            height: 300px;
+            overflow-y: auto;
+            background-color: hsl(var(--card));
+            border: 1px solid #333333;
+        }
+
+        .shadow-md {
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        .rounded-lg {
+            border-radius: 0.5rem;
+        }
+        .bg-white {
+            background-color: hsl(var(--card));
+        }
+
+        .w-40 {
+            width: 30rem !important;
+        }
+
+      .uk-input:disabled, .uk-select:disabled, .uk-textarea:disabled, .uk-input-fake:disabled {
+          opacity: .7 !important;
+          width: 500px !important;
+      }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="">
+  <div class="uk-card-header">
+    <h1 class="text-2xl font-bold mb-4 uk-card-title">NTK Ultra-Compression</h1>
+    <p class="mt-2 text-muted-foreground">
+      Logiciel de Compression Maximal - Sous licence BSD-3-Clause
+    </p>
+  </div>
+        <div class="bg-white uk-card rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Actions rapides</h2>
+            <div class="flex space-x-4">
+                <button class="uk-btn uk-btn-default">Compresser</button>
+                <button class="uk-btn uk-btn-default">Décompresser</button>
+                <button class="uk-btn uk-btn-default">Ajouter des fichiers</button>
+            </div>
+        </div>
+
+        <div class="bg-white uk-card rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Stéganographie</h2>
+            <div class="flex flex-col space-y-4">
+                <div>
+                    <h3 class="text-lg font-medium mb-2">Cacher une archive .ntk</h3>
+                    <div class="flex flex-col space-y-2">
+                        <div class="flex items-center space-x-2">
+                            <label for="cover-image" class="w-40">Image source :</label>
+                            <div data-uk-form-custom="target: true" class="uk-form-custom">
+                              <input type="file" aria-label="Custom controls">
+                              <input class="uk-input max-w-sm" type="text" placeholder="Choisir un fichier image..." aria-label="Custom controls" disabled="">
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label for="ntk-archive" class="w-40">Archive .ntk à cacher :</label>
+                            <div data-uk-form-custom="target: true" class="uk-form-custom">
+                              <input type="file" aria-label="Custom controls">
+                              <input class="uk-input max-w-sm" type="text" placeholder="Choisir le fichier archive..." aria-label="Custom controls" disabled="">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2">Extraire une archive .ntk cachée</h3>
+                    <div class="flex items-center space-x-2">
+                        <label for="stego-image" class="w-40">Image avec archive cachée :</label>
+                            <div data-uk-form-custom="target: true" class="uk-form-custom">
+                              <input type="file" aria-label="Custom controls">
+                              <input class="uk-input max-w-sm" type="text" placeholder="Choisir le fichier conteneur..." aria-label="Custom controls" disabled="">
+                            </div>
+                    </div>
+                </div>
+                <br>
+                <div class="flex justify-between mt-4">
+                    <button class="uk-btn uk-btn-default" id="hide-archive">Cacher l'archive</button>
+                    <button class="uk-btn uk-btn-default" id="extract-archive">Extraire l'archive</button>
+                </div>
+                <br>
+            </div>
+        </div>
+
+        <div class="bg-white uk-card rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">Fichiers</h2>
+            <div class="file-list border rounded-md p-4 mb-4">
+                <!-- Liste des fichiers ici -->
+            </div>
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600">5 fichiers sélectionnés</div>
+                <button class="uk-btn uk-btn-default">Supprimer la sélection</button>
+            </div> <br>
+
+            <progress
+              id="js-progressbar"
+              class="uk-progress"
+              value="4"
+              max="100"
+            ></progress>
+
+            <script>
+              var bar = document.getElementById("js-progressbar");
+
+              var animate = setInterval(function () {
+                  bar.value += 10;
+
+                  if (bar.value >= bar.max) {
+                    clearInterval(animate);
+                  }
+              }, 1000);
+            </script>
+          </div>
+        </div>
+
+        <br>
+        <button id="theme-toggle" class="btn btn-outline mt-4">
+            Basculer Thème
+        </button>
+    </div>
+
+    <script>
+        document.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+        }, false);
+
+        document.onkeydown = function(e) {
+          if (e.ctrlKey && 
+              (e.keyCode === 67 || 
+               e.keyCode === 86 || 
+               e.keyCode === 85 || 
+               e.keyCode === 117)) {
+            return false;
+          }
+        };
+    </script>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+        function setTheme(isDark) {
+            document.body.classList.toggle('dark', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Initialisation du thème
+        if (localStorage.getItem('theme') === 'dark' || (!(localStorage.getItem('theme')) && prefersDarkScheme.matches)) {
+            setTheme(true);
+        }
+
+        themeToggle.addEventListener('click', () => {
+            setTheme(!document.body.classList.contains('dark'));
+        });
+    </script>
+</body>
 </html>

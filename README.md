@@ -3,6 +3,8 @@ NTK Ultra-Compression
 
 NTK Ultra-Compression est un logiciel de compression de données visant à atteindre des taux de compression inégalés en s'affranchissant des contraintes temporelles habituelles.
 
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-1.png" alt="demo-1"/>
+
 Caractéristiques principales
 ----------------------------
 

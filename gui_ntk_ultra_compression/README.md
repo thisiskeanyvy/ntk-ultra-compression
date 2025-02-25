@@ -1,10 +1,20 @@
-# Tauri + Vanilla TS
+# Interface Graphique Tauri
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Typescript.
+## Dark Mode (Par défaut)
 
-## Recommended IDE Setup
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-1.png" alt="demo-1" style="zoom:50%;" />
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-2.png" alt="demo-2" style="zoom:50%;" />
+
+## Light Mode
+
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-3.png" alt="demo-3" style="zoom:50%;" />
+
+<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-4.png" alt="demo-4" style="zoom:50%;" />
+
+## Setup Recommandé
+
+- [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
 Compilation
 -----------

@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "gui_ntk_ultra_compression",
+        "title": "NTK Ultra-Compression",
         "width": 800,
         "height": 600
       }
