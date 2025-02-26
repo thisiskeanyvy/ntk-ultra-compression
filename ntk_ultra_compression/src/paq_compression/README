@@ -1,0 +1,2 @@
+commande pour compresser: cargo run --release -- compress test_input.txt compressed.ntk
+commande pour décompresser: cargo run --release -- decompress compressed.ntk test_output.txt
