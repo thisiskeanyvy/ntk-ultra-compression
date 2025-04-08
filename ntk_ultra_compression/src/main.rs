@@ -1,12 +1,12 @@
-//by keany-vy.khun
 use ntk_ultra_compression::security::stegano::*;
 use ntk_ultra_compression::bzip2_compression::Bzip2::*;
+use ntk_ultra_compression::lock_archive::*;
 use std::process;
 use std::io::{self, Write};
+use ntk_ultra_compression::lock_archive::lock::{chiffrer_fichier, dechiffrer_fichier};
 
 const RESET: &str = "\x1b[0m";
 const BOLD: &str = "\x1b[1m";
-//const DIM: &str = "\x1b[2m";
 const YELLOW: &str = "\x1b[33m";
 const RED: &str = "\x1b[31m";
 const GREEN: &str = "\x1b[32m";
@@ -15,11 +15,6 @@ fn clear_screen() {
     print!("\x1B[2J\x1B[1;1H");
     io::stdout().flush().unwrap();
 }
-
-/*
-- Not Implemented (not_implemented) :
-Just for developpement use and conception
-*/
 
 fn not_implemented() {
     println!("{}Cette fonction n'est pas encore implémentée...{}", YELLOW, RESET);
@@ -51,15 +46,6 @@ fn help_menu() {
     {}", BOLD, RESET);
 }
 
-/*
-- Commands Line Parser (parse_commands_line) :
-1st arg : ntk compression tool binary
-2nd arg : file operation
-3rd arg: file or folder input
-4th arg : file output
-5th and + : configuration options
-*/
-
 fn parse_commands_line() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -88,8 +74,35 @@ fn parse_commands_line() {
             decompress(&args[2], file_extension);
             println!("{}Extraction terminée avec succès.{}", GREEN, RESET);
         },
-        "encrypt" => not_implemented(),
-        "decrypt" => not_implemented(),
+        "encrypt" => {
+            if args.len() < 3 {
+                println!("{}Erreur : Aucun fichier d'entrée spécifié pour le chiffrement.{}", RED, RESET);
+                process::exit(1);
+            }
+            println!("{}Chiffrement du fichier en cours...{}", YELLOW, RESET);
+            let password = saisir_mot_de_passe();
+            chiffrer_fichier(&args[2], &format!("{}.enc", args[2]), &password)
+                .unwrap_or_else(|e| {
+                    println!("{}Erreur de chiffrement : {}{}", RED, e, RESET);
+                    process::exit(1);
+                });
+            println!("{}Chiffrement terminé avec succès.{}", GREEN, RESET);
+        },
+        "decrypt" => {
+            if args.len() < 3 {
+                println!("{}Erreur : Aucun fichier d'entrée spécifié pour le déchiffrement.{}", RED, RESET);
+                process::exit(1);
+            }
+            println!("{}Déchiffrement du fichier en cours...{}", YELLOW, RESET);
+            let password = saisir_mot_de_passe();
+            let output_path = args[2].replace(".enc", ".dec");
+            dechiffrer_fichier(&args[2], &output_path, &password)
+                .unwrap_or_else(|e| {
+                    println!("{}Erreur de déchiffrement : {}{}", RED, e, RESET);
+                    process::exit(1);
+                });
+            println!("{}Déchiffrement terminé avec succès.{}", GREEN, RESET);
+        },
         "hide" => {
             if args.len() < 4 {
                 println!("{}Erreur : Arguments manquants pour l'opération de dissimulation.{}", RED, RESET);
@@ -97,8 +110,6 @@ fn parse_commands_line() {
             }
             println!("{}Dissimulation du fichier dans l'image...{}", YELLOW, RESET);
             let output_path = format!("hidden-{}", args[2]);
-
-            //1st arg-> input img, 2nd arg -> file to hide, 3rd -> output img
             encode(&args[2], &args[3], &output_path);
             println!("{}Fichier dissimulé avec succès.{}", GREEN, RESET);
         },
@@ -108,8 +119,6 @@ fn parse_commands_line() {
                 process::exit(1);
             }
             println!("{}Extraction du fichier caché depuis l'image...{}", YELLOW, RESET);
-
-            //1st arg-> input img with hidden data, 2nd arg -> output file with data
             decode(&args[2], &args[3]);
             println!("{}Fichier caché extrait avec succès.{}", GREEN, RESET);
         },
@@ -120,6 +129,17 @@ fn parse_commands_line() {
             process::exit(1);
         }
     }
+}
+
+// Nouvelle fonction utilitaire de saisie du mot de passe
+fn saisir_mot_de_passe() -> Vec<u8> {
+    print!("Entrez le mot de passe : ");
+    io::stdout().flush().unwrap();
+    
+    let mut password = String::new();
+    io::stdin().read_line(&mut password).unwrap();
+    
+    password.trim().as_bytes().to_vec()
 }
 
 fn main() {
