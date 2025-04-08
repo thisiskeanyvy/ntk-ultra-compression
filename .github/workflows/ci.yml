@@ -5,12 +5,12 @@ on: [push, pull_request]
 jobs:
   check-run:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Installer Rust
       uses: dtolnay/rust-toolchain@stable
-      
-    - name: Exécuter le projet
-      run: cargo run
+
+    - name: Exécuter le projet avec input
+      run: echo -e "4\n" | cargo run
