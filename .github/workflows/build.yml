@@ -11,7 +11,7 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
-    runs-on: ubuntu-latest # Pour simplifier, mais vous pouvez garder la matrice si nécessaire
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -26,30 +26,32 @@ jobs:
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
+        working-directory: gui_ntk_ultra_compression
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
+        working-directory: gui_ntk_ultra_compression
         with:
-          workspaces: 'gui_ntk_ultra_compression/src-tauri -> gui_ntk_ultra_compression/target'
+          workspaces: './src-tauri -> target'
 
       - name: Sync node version and setup cache
         uses: actions/setup-node@v3
         with:
           node-version: 'lts/*'
-          cache: 'yarn' # Mettre npm, yarn ou pnpm.
+          cache: 'yarn'
 
       - name: Install frontend dependencies
         working-directory: gui_ntk_ultra_compression
-        run: yarn install # Change this to npm, yarn or pnpm.
+        run: yarn install
 
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
-        working-directory: gui_ntk_ultra_compression
+        working-directory: gui_ntk_ultra_compression  # Correction : alignement au même niveau que "uses"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }} # Cela ne fonctionne que si votre flux de travail se déclenche sur de nouveaux tag.
-          releaseName: 'App Name v__VERSION__' # tauri-action remplace __VERSION__ par la version de l'application.
+          tagName: ${{ github.ref_name }}
+          releaseName: 'App Name v__VERSION__'
           releaseBody: 'See the assets to download and install this version.'
           releaseDraft: true
           prerelease: false
