@@ -71,7 +71,7 @@ fn parse_commands_line() {
             }
             println!("{}Extraction du fichier en cours...{}", YELLOW, RESET);
             let file_extension = args[2].split('.').last().unwrap_or("");
-            decompress(&args[2], file_extension);
+            decompress(&args[2]);
             println!("{}Extraction terminée avec succès.{}", GREEN, RESET);
         },
         "encrypt" => {
