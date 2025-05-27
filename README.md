@@ -2,8 +2,8 @@
 
 Un logiciel de compression ultra-performant avec chiffrement et stéganographie.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![License](https://img.shields.io/badge/license-BSD-green.svg)
 
 ## Caractéristiques
 
@@ -28,6 +28,23 @@ Un logiciel de compression ultra-performant avec chiffrement et stéganographie.
   - Support du glisser-déposer
   - Barre de progression en temps réel
   - Mode sombre par défaut
+
+## Démonstration
+
+### Interface principale
+![Interface principale](docs/demo/screen-1.png)
+
+### Informations sur l'archive
+![Informations sur l'archive](docs/demo/screen-2.png)
+
+### Progression en temps réel
+![Progression en temps réel](docs/demo/screen-3.png)
+
+### Compression avec chiffrement
+![Compression avec chiffrement](docs/demo/screen-4.png)
+
+### Stéganographie - Extraire/Cacher
+![Stéganographie - Extraire/Cacher](docs/demo/screen-5.png)
 
 ## Installation
 
