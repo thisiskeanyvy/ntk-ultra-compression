@@ -1,97 +1,88 @@
 # NTK Ultra-Compression
 
-Un logiciel de compression de données avancé utilisant des techniques de compression innovantes.
+Un logiciel de compression ultra-performant avec chiffrement et stéganographie.
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Caractéristiques
 
-- Interface graphique moderne et intuitive
-- Compression de données haute performance
-- Support du multi-threading
-- Chiffrement AES-256 optionnel
-- Détection automatique des fichiers compressés
-- Visualisation des métadonnées de compression
-- Support multi-plateforme (Windows, macOS, Linux)
+- **Compression avancée**
+  - Utilisation de zstd pour une compression optimale
+  - Taux de compression ajustable (1-22)
+  - Traitement par blocs pour une meilleure performance
+  - Support des fichiers volumineux
+
+- **Sécurité**
+  - Chiffrement AES-256-GCM
+  - Dérivation de clé sécurisée avec PBKDF2
+  - Protection contre les modifications non autorisées
+
+- **Stéganographie**
+  - Dissimulation d'archives dans des images PNG
+  - Extraction d'archives cachées
+  - Vérification de capacité automatique
+
+- **Interface graphique moderne**
+  - Design intuitif et réactif
+  - Support du glisser-déposer
+  - Barre de progression en temps réel
+  - Mode sombre par défaut
 
 ## Installation
 
-### Prérequis
+Consultez le fichier [INSTALL.md](INSTALL.md) pour les instructions détaillées d'installation sur votre système.
 
-- Rust (édition 2021 ou supérieure)
-- Node.js (v16 ou supérieure)
-- npm ou yarn
-- Dépendances système pour Tauri (voir [documentation Tauri](https://tauri.app/v1/guides/getting-started/prerequisites))
+## Documentation
 
-### Compilation depuis les sources
+- [Guide utilisateur](docs/user-guide.md) - Guide complet d'utilisation
+- [Documentation technique](docs/technical/README.md) - Documentation pour les développeurs
+- [Sécurité](docs/security.md) - Détails sur les mécanismes de sécurité
+- [FAQ](docs/FAQ.md) - Questions fréquemment posées
 
-1. Clonez le dépôt :
-```bash
-git clone https://github.com/votre-username/ntk-ultra-compression.git
-cd ntk-ultra-compression
-```
-
-2. Installez les dépendances et compilez :
-```bash
-# Installation des dépendances frontend
-cd gui
-npm install
-
-# Compilation du projet
-npm run tauri build
-```
-
-Les exécutables compilés seront disponibles dans le dossier `src-tauri/target/release`.
-
-## Utilisation
-
-1. Lancez l'application NTK Ultra-Compression
-2. Sélectionnez le fichier à compresser/décompresser
-3. Choisissez l'emplacement de sortie
-4. Ajustez les options de compression si nécessaire :
-   - Niveau de compression (1-9)
-   - Activation du chiffrement
-   - Mot de passe (si chiffrement activé)
-5. Cliquez sur "Compresser" ou "Décompresser"
-
-## Architecture du projet
+## Structure du projet
 
 ```
 ntk-ultra-compression/
-├── core/                    # Bibliothèque core de compression
-│   ├── src/                # Code source Rust
-│   └── Cargo.toml          # Manifeste du package core
-├── gui/                    # Interface graphique Tauri
-│   ├── src/               # Code source React/TypeScript
-│   ├── src-tauri/        # Code source Rust pour Tauri
-│   └── package.json      # Configuration npm
-└── Cargo.toml             # Manifeste workspace Rust
+├── core/           # Bibliothèque de compression
+├── gui/            # Interface graphique Tauri
+├── docs/           # Documentation
+└── test_files/     # Fichiers de test
 ```
 
-## Algorithme de compression
+## Utilisation rapide
 
-NTK Ultra-Compression utilise une combinaison d'algorithmes pour obtenir des taux de compression optimaux :
+1. Lancez l'application
+2. Sélectionnez un fichier à compresser
+3. Choisissez les options (compression, chiffrement)
+4. Cliquez sur "Compress" ou "Decompress"
 
-1. Prétraitement des données
-2. Analyse de redondance
-3. Compression par dictionnaire
-4. Compression entropique
-
-## Sécurité
-
-- Chiffrement AES-256 en mode GCM
-- Dérivation de clé sécurisée (PBKDF2)
-- Vérification d'intégrité (BLAKE3)
-
-## Licence
-
-Ce projet est sous licence BSD-3-Clause. Voir le fichier `LICENSE` pour plus de détails.
-
-## Auteurs
-
-- Nathan Pelletti
-- Thomas Demesse
-- Keany Vy Khun
-- Litissia Ben Mohand
+Pour la stéganographie :
+1. Allez dans l'onglet "Stéganographie"
+2. Choisissez une archive et une image
+3. Utilisez "Cacher" ou "Extraire"
 
 ## Contribution
 
-Les contributions sont les bienvenues ! Veuillez consulter notre guide de contribution avant de soumettre une pull request. 
+Les contributions sont les bienvenues ! Consultez [CONTRIBUTING.md](docs/CONTRIBUTING.md) pour les directives.
+
+## Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## Auteurs
+
+- Nathan Pelletti (@nathanpel)
+- Thomas Demesse (@thomdem)
+- Keany Vy Khun (@thisiskeanyvy)
+- Litissia Ben Mohand (@litissia28)
+
+## Remerciements
+
+- [Tauri](https://tauri.app/) pour le framework
+- [zstd](https://github.com/facebook/zstd) pour l'algorithme de compression
+- La communauté Rust pour les bibliothèques utilisées
+
+## Dépôt
+
+[GitHub Repository](https://github.com/thisiskeanyvy/ntk-ultra-compression) 

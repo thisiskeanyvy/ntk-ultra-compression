@@ -26,10 +26,11 @@ use std::cmp::min;
 // Constantes pour le format de fichier
 const MAGIC_BYTES: &[u8] = b"NTK1";
 const HEADER_SIZE: usize = 512;
-const DEFAULT_BLOCK_SIZE: usize = 16 * 1024 * 1024; // 16MB pour de meilleures performances
-const SALT_SIZE: usize = 32;
+const DEFAULT_BLOCK_SIZE: usize = 16 * 1024 * 1024; // 16MB
+const SALT_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
+const ENCRYPTED_CHUNK_SIZE: usize = 1024 * 1024; // 1MB
 const TAG_SIZE: usize = 16; // Taille du tag d'authentification AES-GCM
 
 #[derive(Debug, Error)]
@@ -402,6 +403,26 @@ impl Compressor {
         Ok((header, salt, nonce))
     }
 
+    fn encrypt_data(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
+        // Version simplifiée avec un seul bloc
+        let cipher = Aes256Gcm::new_from_slice(key)
+            .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
+        let nonce = Nonce::from_slice(nonce);
+        
+        cipher.encrypt(nonce, data)
+            .map_err(|e| CompressionError::EncryptionError(e.to_string()).into())
+    }
+
+    fn decrypt_data(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
+        // Version simplifiée avec un seul bloc
+        let cipher = Aes256Gcm::new_from_slice(key)
+            .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
+        let nonce = Nonce::from_slice(nonce);
+        
+        cipher.decrypt(nonce, data)
+            .map_err(|e| CompressionError::EncryptionError(format!("Decryption failed: {}", e)).into())
+    }
+
     fn compress_block(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
         // Compression avec zstd
         let mut compressed = Vec::with_capacity(data.len());
@@ -413,12 +434,7 @@ impl Compressor {
 
         // Chiffrement si nécessaire
         if !key.is_empty() {
-            let cipher = Aes256Gcm::new_from_slice(key)
-                .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
-            let nonce = Nonce::from_slice(nonce);
-            
-            cipher.encrypt(nonce, compressed.as_ref())
-                .map_err(|e| CompressionError::EncryptionError(e.to_string()).into())
+            self.encrypt_data(&compressed, key, nonce)
         } else {
             Ok(compressed)
         }
@@ -426,12 +442,7 @@ impl Compressor {
 
     fn decompress_block(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
         let to_decompress = if !key.is_empty() {
-            let cipher = Aes256Gcm::new_from_slice(key)
-                .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
-            let nonce = Nonce::from_slice(nonce);
-            
-            cipher.decrypt(nonce, data)
-                .map_err(|e| CompressionError::EncryptionError(format!("Decryption failed: {}", e)))?
+            self.decrypt_data(data, key, nonce)?
         } else {
             data.to_vec()
         };
@@ -442,7 +453,6 @@ impl Compressor {
         Ok(decoded)
     }
 
-    // Méthodes privées pour la gestion du chiffrement
     fn prepare_encryption(&self) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let password = self.options.password.as_ref()
             .ok_or_else(|| CompressionError::EncryptionError("Password required for encryption".into()))?;
@@ -463,7 +473,7 @@ impl Compressor {
         pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
             password.as_bytes(),
             salt,
-            100_000,
+            10_000, // Réduit pour plus de rapidité
             &mut key,
         );
         Ok(key)

@@ -571,8 +571,9 @@ function App() {
         {currentTab === 1 && (
           <>
             <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Stéganographie
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ImageIcon />
+                Cacher une archive dans une image
               </Typography>
 
               <Box sx={{ mb: 3 }}>
@@ -583,10 +584,10 @@ function App() {
                   disabled={isProcessing}
                   sx={{ mr: 2 }}
                 >
-                  Sélectionner l'archive
+                  Sélectionner l'archive (.ntk)
                 </Button>
                 <Typography variant="body2" color="text.secondary">
-                  {inputPath || 'Aucun fichier sélectionné'}
+                  {inputPath || 'Aucune archive sélectionnée'}
                 </Typography>
               </Box>
 
@@ -598,7 +599,7 @@ function App() {
                   disabled={isProcessing}
                   sx={{ mr: 2 }}
                 >
-                  Sélectionner l'image
+                  Sélectionner l'image support
                 </Button>
                 <Typography variant="body2" color="text.secondary">
                   {steganographyImage || 'Aucune image sélectionnée'}
@@ -609,14 +610,22 @@ function App() {
                 <Button
                   variant="contained"
                   startIcon={<SaveIcon />}
-                  onClick={selectOutputFile}
+                  onClick={async () => {
+                    const selected = await save({
+                      filters: [{ name: 'Images PNG', extensions: ['png'] }],
+                      defaultPath: steganographyOutput,
+                    });
+                    if (selected) {
+                      setSteganographyOutput(selected);
+                    }
+                  }}
                   disabled={isProcessing}
                   sx={{ mr: 2 }}
                 >
-                  Sélectionner la destination
+                  Sélectionner la destination (.png)
                 </Button>
                 <Typography variant="body2" color="text.secondary">
-                  {outputPath || 'Aucune destination sélectionnée'}
+                  {steganographyOutput || 'Aucune destination sélectionnée'}
                 </Typography>
               </Box>
 
@@ -627,18 +636,67 @@ function App() {
                   onClick={handleSteganographyHide}
                   disabled={isProcessing || !inputPath || !steganographyImage || !steganographyOutput}
                   startIcon={<ImageIcon />}
+                  fullWidth
                 >
-                  Cacher l'archive
+                  Cacher l'archive dans l'image
                 </Button>
+              </Box>
+            </Paper>
 
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <UnarchiveIcon />
+                Extraire une archive cachée
+              </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<ImageIcon />}
+                  onClick={handleSteganographyImageSelect}
+                  disabled={isProcessing}
+                  sx={{ mr: 2 }}
+                >
+                  Sélectionner l'image contenant l'archive
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {steganographyImage || 'Aucune image sélectionnée'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={async () => {
+                    const selected = await save({
+                      filters: [{ name: 'Archive NTK', extensions: ['ntk'] }],
+                      defaultPath: outputPath,
+                    });
+                    if (selected) {
+                      setOutputPath(selected);
+                    }
+                  }}
+                  disabled={isProcessing}
+                  sx={{ mr: 2 }}
+                >
+                  Sélectionner la destination (.ntk)
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {outputPath || 'Aucune destination sélectionnée'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
                   variant="contained"
                   color="secondary"
                   onClick={handleSteganographyExtract}
                   disabled={isProcessing || !steganographyImage || !outputPath}
                   startIcon={<UnarchiveIcon />}
+                  fullWidth
                 >
-                  Extraire l'archive
+                  Extraire l'archive de l'image
                 </Button>
               </Box>
             </Paper>
@@ -659,67 +717,6 @@ function App() {
                 : 'Traitement en cours...'}
             </Typography>
           </Box>
-        )}
-
-        {metadata && (
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              File Information
-            </Typography>
-            <TableContainer>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>File Name</TableCell>
-                    <TableCell>{metadata.original_name}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Original Size</TableCell>
-                    <TableCell>{formatSize(metadata.original_size)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Compressed Size</TableCell>
-                    <TableCell>{formatSize(metadata.compressed_size)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Compression Ratio</TableCell>
-                    <TableCell>{metadata.compression_ratio.toFixed(2)}x</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Encrypted</TableCell>
-                    <TableCell>
-                      {metadata.encrypted ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LockIcon color="primary" />
-                          Yes
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LockOpenIcon />
-                          No
-                        </Box>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Creation Time</TableCell>
-                    <TableCell>{new Date(metadata.creation_time * 1000).toLocaleString()}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Checksum</TableCell>
-                    <TableCell
-                      sx={{
-                        fontFamily: 'monospace',
-                        wordBreak: 'break-all',
-                      }}
-                    >
-                      {metadata.checksum}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
         )}
 
         <Dialog 

@@ -24,8 +24,14 @@ pub struct DecompressRequest {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SteganographyRequest {
+pub struct SteganographyHideRequest {
     archive_path: String,
+    image_path: String,
+    output_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SteganographyExtractRequest {
     image_path: String,
     output_path: String,
 }
@@ -127,7 +133,7 @@ async fn clear_progress_handler(progress: State<'_, ProgressState>) -> Result<()
 }
 
 #[tauri::command]
-async fn hide_in_image(request: SteganographyRequest) -> Result<(), String> {
+async fn hide_in_image(request: SteganographyHideRequest) -> Result<(), String> {
     let compressor = Compressor::new(CompressionOptions::default());
     compressor
         .hide_in_image(request.archive_path, request.image_path, request.output_path)
@@ -135,7 +141,7 @@ async fn hide_in_image(request: SteganographyRequest) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn extract_from_image(request: SteganographyRequest) -> Result<(), String> {
+async fn extract_from_image(request: SteganographyExtractRequest) -> Result<(), String> {
     let compressor = Compressor::new(CompressionOptions::default());
     compressor
         .extract_from_image(request.image_path, request.output_path)
