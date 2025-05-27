@@ -1,6 +1,44 @@
-[package]
-name = "ntk-manager"
+[workspace]
+members = [
+    "core",
+    "gui/src-tauri"
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["Nathan Pelletti", "Thomas Demesse", "Keany Vy Khun", "Litissia Ben Mohand"]
+license = "BSD-3-Clause"
 
-[dependencies]
+[workspace.dependencies]
+# Sérialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Gestion d'erreurs
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.28", features = ["full"] }
+
+# GUI
+tauri = { version = "1.4" }
+tauri-build = { version = "1.4" }
+
+# Compression
+zstd = "0.12"
+lz4 = "1.24"
+brotli = "3.5"
+
+# Cryptographie
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+blake3 = "1.5"
+
+# Utilitaires
+num_cpus = "1.16"
+rayon = "1.7"
+bytes = "1.4"
+memmap2 = "0.7" 

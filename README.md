@@ -1,90 +1,97 @@
-NTK Ultra-Compression
----------------------
+# NTK Ultra-Compression
 
-NTK Ultra-Compression est un logiciel de compression de données visant à atteindre des taux de compression inégalés en s'affranchissant des contraintes temporelles habituelles.
+Un logiciel de compression de données avancé utilisant des techniques de compression innovantes.
 
-<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo-1.png" alt="demo-1"/>
+## Caractéristiques
 
-Caractéristiques principales
-----------------------------
+- Interface graphique moderne et intuitive
+- Compression de données haute performance
+- Support du multi-threading
+- Chiffrement AES-256 optionnel
+- Détection automatique des fichiers compressés
+- Visualisation des métadonnées de compression
+- Support multi-plateforme (Windows, macOS, Linux)
 
-*   Compression maximale sans limite de temps
-*   Nouveau format de fichier .ntk optimisé
-*   Développé en Rust pour la performance et la sécurité
-*   Idéal pour les fichiers volumineux (logiciels, jeux vidéo, bases de données)
-*   Compression sans perte préservant 100% de l'intégrité des données
-*   Options avancées de chiffrement et stéganographie
+## Installation
 
-Utilisation
------------
+### Prérequis
 
-`````bash
-$ ntk compress <input_file> <output_file.ntk>
-`````
+- Rust (édition 2021 ou supérieure)
+- Node.js (v16 ou supérieure)
+- npm ou yarn
+- Dépendances système pour Tauri (voir [documentation Tauri](https://tauri.app/v1/guides/getting-started/prerequisites))
 
-``````bash
-$ ntk extract <input_file.ntk> <output_file>
-``````
+### Compilation depuis les sources
 
-<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/cli-1.png" alt="cli-1" width="48%" />
+1. Clonez le dépôt :
+```bash
+git clone https://github.com/votre-username/ntk-ultra-compression.git
+cd ntk-ultra-compression
+```
 
-Algorithme
-----------
+2. Installez les dépendances et compilez :
+```bash
+# Installation des dépendances frontend
+cd gui
+npm install
 
-NTK Ultra-Compression utilise une approche de compression adaptative multi-niveaux, combinant :
+# Compilation du projet
+npm run tauri build
+```
 
-*   Codage arithmétique contextuel
-*   Transformation de Burrows-Wheeler
-*   Factorisation de matrices creuses
+Les exécutables compilés seront disponibles dans le dossier `src-tauri/target/release`.
 
-L'algorithme analyse en profondeur la structure des fichiers pour appliquer dynamiquement les techniques de compression les plus appropriées à chaque segment de données.
+## Utilisation
 
-Format .ntk
------------
+1. Lancez l'application NTK Ultra-Compression
+2. Sélectionnez le fichier à compresser/décompresser
+3. Choisissez l'emplacement de sortie
+4. Ajustez les options de compression si nécessaire :
+   - Niveau de compression (1-9)
+   - Activation du chiffrement
+   - Mot de passe (si chiffrement activé)
+5. Cliquez sur "Compresser" ou "Décompresser"
 
-Structure de métadonnées hiérarchique et compressée, optimisant le stockage des données ultra-compressées. Utilise des techniques comme le hachage perceptuel et la déduplication au niveau des blocs.
+## Architecture du projet
 
-Performances
-------------
+```
+ntk-ultra-compression/
+├── core/                    # Bibliothèque core de compression
+│   ├── src/                # Code source Rust
+│   └── Cargo.toml          # Manifeste du package core
+├── gui/                    # Interface graphique Tauri
+│   ├── src/               # Code source React/TypeScript
+│   ├── src-tauri/        # Code source Rust pour Tauri
+│   └── package.json      # Configuration npm
+└── Cargo.toml             # Manifeste workspace Rust
+```
 
-Les taux de compression varient selon les types de fichiers, mais peuvent atteindre jusqu'à 90% de réduction pour certains fichiers volumineux. Les temps de compression/décompression peuvent être longs en raison de l'optimisation poussée.
+## Algorithme de compression
 
-Compilation
------------
+NTK Ultra-Compression utilise une combinaison d'algorithmes pour obtenir des taux de compression optimaux :
 
-Requiert Rust 1.55+ et cargo pour lancer NTK-Manager
+1. Prétraitement des données
+2. Analyse de redondance
+3. Compression par dictionnaire
+4. Compression entropique
 
-``````bash
-$ cargo run
-``````
+## Sécurité
 
-<p float="left">
-  <img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-1.png" alt="install-1" width="48%" />
-  <img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-3.png" alt="install-3" width="48%" />
-</p>
+- Chiffrement AES-256 en mode GCM
+- Dérivation de clé sécurisée (PBKDF2)
+- Vérification d'intégrité (BLAKE3)
 
-Mises à jour
--------
+## Licence
 
-Pour mettre à jour le logiciel vers la dernière version vous pouvez utiliser NTK-Manager ou le faire via l'outil git.
+Ce projet est sous licence BSD-3-Clause. Voir le fichier `LICENSE` pour plus de détails.
 
-``````bash
-$ git pull
-``````
+## Auteurs
 
-<img src="https://raw.githubusercontent.com/thisiskeanyvy/ntk-ultra-compression/refs/heads/main/demo/install-2.png" alt="install-2" width="48%" />
+- Nathan Pelletti
+- Thomas Demesse
+- Keany Vy Khun
+- Litissia Ben Mohand
 
-Licence
--------
+## Contribution
 
-Ce projet est sous licence BSD 3-Clause. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
-Auteurs
--------
-
-*   Nathan Pelletti
-*   Thomas Demesse
-*   Keany Vy Khun
-*   Litissia Ben Mohand
-
-Développé dans le cadre d'un projet à l'École pour l'informatique et les techniques avancées.
+Les contributions sont les bienvenues ! Veuillez consulter notre guide de contribution avant de soumettre une pull request. 
