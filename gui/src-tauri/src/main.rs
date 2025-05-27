@@ -23,6 +23,13 @@ pub struct DecompressRequest {
     password: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SteganographyRequest {
+    archive_path: String,
+    image_path: String,
+    output_path: String,
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct ProgressEvent {
     processed_bytes: u64,
@@ -119,6 +126,22 @@ async fn clear_progress_handler(progress: State<'_, ProgressState>) -> Result<()
     Ok(())
 }
 
+#[tauri::command]
+async fn hide_in_image(request: SteganographyRequest) -> Result<(), String> {
+    let compressor = Compressor::new(CompressionOptions::default());
+    compressor
+        .hide_in_image(request.archive_path, request.image_path, request.output_path)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn extract_from_image(request: SteganographyRequest) -> Result<(), String> {
+    let compressor = Compressor::new(CompressionOptions::default());
+    compressor
+        .extract_from_image(request.image_path, request.output_path)
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(ProgressState(Arc::new(Mutex::new(None))))
@@ -127,7 +150,9 @@ fn main() {
             decompress,
             get_metadata,
             set_progress_handler,
-            clear_progress_handler
+            clear_progress_handler,
+            hide_in_image,
+            extract_from_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

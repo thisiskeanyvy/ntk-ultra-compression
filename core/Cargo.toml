@@ -10,6 +10,7 @@ description = "Core compression library for NTK Ultra-Compression"
 # Sérialization
 serde.workspace = true
 serde_json.workspace = true
+bincode.workspace = true
 
 # Gestion d'erreurs
 anyhow.workspace = true
@@ -21,19 +22,23 @@ lz4.workspace = true
 brotli.workspace = true
 
 # Cryptographie
-aes-gcm = { version = "0.10", features = ["std"] }
-pbkdf2 = { version = "0.12", features = ["std"] }
+aes-gcm.workspace = true
+pbkdf2.workspace = true
 blake3.workspace = true
-sha2 = "0.10"
+sha2.workspace = true
 hex = "0.4"
 getrandom = "0.2"
+
+# Stéganographie et images
+image = "0.24"
+png = "0.17"
 
 # Utilitaires
 num_cpus.workspace = true
 rayon.workspace = true
 bytes.workspace = true
 memmap2.workspace = true
-byteorder = "1.4"
+byteorder.workspace = true
 
 [lib]
 name = "ntk_core"

@@ -19,6 +19,9 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
 };
+use bincode;
+use image::{ImageBuffer, Rgba, RgbaImage, GenericImageView, ImageFormat};
+use std::cmp::min;
 
 // Constantes pour le format de fichier
 const MAGIC_BYTES: &[u8] = b"NTK1";
@@ -27,6 +30,7 @@ const DEFAULT_BLOCK_SIZE: usize = 16 * 1024 * 1024; // 16MB pour de meilleures p
 const SALT_SIZE: usize = 32;
 const KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
+const TAG_SIZE: usize = 16; // Taille du tag d'authentification AES-GCM
 
 #[derive(Debug, Error)]
 pub enum CompressionError {
@@ -38,6 +42,8 @@ pub enum CompressionError {
     IoError(#[from] io::Error),
     #[error("Compression error: {0}")]
     CompressionError(String),
+    #[error("Steganography error: {0}")]
+    SteganographyError(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +60,10 @@ pub struct CompressionOptions {
     pub use_encryption: bool,
     /// Mot de passe pour le chiffrement
     pub password: Option<String>,
+    /// Utiliser la stéganographie
+    pub use_steganography: bool,
+    /// Chemin de l'image pour la stéganographie
+    pub steganography_image: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +97,12 @@ pub struct ProgressInfo {
 
 pub type ProgressCallback = Arc<Mutex<dyn FnMut(ProgressInfo) + Send + 'static>>;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EncryptedBlock {
+    nonce: Vec<u8>,
+    data: Vec<u8>,
+}
+
 pub struct Compressor {
     options: CompressionOptions,
     progress_callback: Option<Arc<Mutex<dyn FnMut(ProgressInfo) + Send + 'static>>>,
@@ -95,12 +111,14 @@ pub struct Compressor {
 impl Default for CompressionOptions {
     fn default() -> Self {
         Self {
-            level: 19, // Niveau de compression élevé par défaut
+            level: 19,
             block_size: DEFAULT_BLOCK_SIZE,
             threads: num_cpus::get(),
-            dictionary_size: 64 * 1024 * 1024, // 64MB pour de meilleurs ratios
+            dictionary_size: 64 * 1024 * 1024,
             use_encryption: false,
             password: None,
+            use_steganography: false,
+            steganography_image: None,
         }
     }
 }
@@ -125,11 +143,8 @@ impl Compressor {
         let input_path = input.as_ref();
         let output_path = output.as_ref();
 
-        // Ouvrir les fichiers
-        let input_file = File::open(input_path)
-            .with_context(|| format!("Failed to open input file: {}", input_path.display()))?;
-        let output_file = File::create(output_path)
-            .with_context(|| format!("Failed to create output file: {}", output_path.display()))?;
+        let input_file = File::open(input_path)?;
+        let mut output_file = BufWriter::new(File::create(output_path)?);
 
         let input_size = input_file.metadata()?.len();
         let input_name = input_path.file_name()
@@ -140,9 +155,6 @@ impl Compressor {
             .to_string_lossy()
             .into_owned();
 
-        // Mapper le fichier en mémoire pour une lecture efficace
-        let mmap = unsafe { Mmap::map(&input_file)? };
-
         // Préparer le chiffrement si nécessaire
         let (key, salt, nonce) = if self.options.use_encryption {
             self.prepare_encryption()?
@@ -150,36 +162,37 @@ impl Compressor {
             (vec![], vec![], vec![])
         };
 
+        // Mapper le fichier en mémoire pour une lecture efficace
+        let mmap = unsafe { Mmap::map(&input_file)? };
+
         // Diviser le fichier en blocs
         let chunk_size = self.options.block_size;
         let chunks: Vec<_> = mmap.chunks(chunk_size).collect();
         
-        // Compresser les blocs en parallèle avec suivi de progression
+        // Compresser les blocs en parallèle
         let processed_bytes = Arc::new(Mutex::new(0u64));
-        let start = Arc::new(Instant::now());
+        let start_time = Arc::new(Instant::now());
 
         let compressed_blocks: Vec<_> = chunks.par_iter()
             .map(|chunk| {
-                let result = self.compress_block(chunk, &key);
+                let result = self.compress_block(chunk, &key, &nonce);
                 
                 // Mise à jour de la progression
-                if let Some(ref callback) = self.progress_callback {
+                if let Some(ref callback) = &self.progress_callback {
                     let mut bytes = processed_bytes.lock().unwrap();
                     *bytes += chunk.len() as u64;
                     
-                    let elapsed = start.elapsed().as_secs_f64();
+                    let elapsed = start_time.elapsed().as_secs_f64();
                     let speed = *bytes as f64 / elapsed;
                     let remaining = (input_size - *bytes) as f64 / speed;
                     
-                    let info = ProgressInfo {
-                        processed_bytes: *bytes,
-                        total_bytes: input_size,
-                        current_speed: speed,
-                        estimated_remaining_time: remaining,
-                    };
-                    
-                    if let Ok(mut callback) = callback.lock() {
-                        callback(info);
+                    if let Ok(mut guard) = callback.lock() {
+                        guard(ProgressInfo {
+                            processed_bytes: *bytes,
+                            total_bytes: input_size,
+                            current_speed: speed,
+                            estimated_remaining_time: remaining,
+                        });
                     }
                 }
                 
@@ -187,20 +200,19 @@ impl Compressor {
             })
             .collect::<Result<_>>()?;
 
-        // Écrire l'en-tête et les blocs
-        let mut writer = BufWriter::new(output_file);
-        self.write_header(&mut writer, &input_name, input_size, &salt, &nonce)?;
+        // Écrire l'en-tête
+        self.write_header(&mut output_file, &input_name, input_size, &salt, &nonce)?;
 
         let mut compressed_size = HEADER_SIZE as u64;
         for block in compressed_blocks {
-            writer.write_u32::<LittleEndian>(block.len() as u32)?;
-            writer.write_all(&block)?;
-            compressed_size += block.len() as u64 + 4;
+            let block_size = block.len() as u32;
+            output_file.write_all(&block_size.to_le_bytes())?;
+            output_file.write_all(&block)?;
+            compressed_size += block_size as u64 + 4;
         }
 
-        writer.flush()?;
+        output_file.flush()?;
 
-        // Calculer le checksum final
         let checksum = blake3::hash(&mmap);
         let elapsed = start.elapsed().as_secs_f64();
 
@@ -246,30 +258,61 @@ impl Compressor {
         let start = Instant::now();
 
         // Lire et décompresser les blocs
-        while let Ok(block_size) = input_file.read_u32::<LittleEndian>() {
-            let mut block = vec![0u8; block_size as usize];
-            input_file.read_exact(&mut block)?;
+        while processed_bytes < file_size - HEADER_SIZE as u64 {
+            // Lire la taille du bloc
+            let mut size_buf = [0u8; 4];
+            if let Err(e) = input_file.read_exact(&mut size_buf) {
+                if e.kind() == io::ErrorKind::UnexpectedEof {
+                    break;
+                }
+                return Err(e.into());
+            }
+            let block_size = u32::from_le_bytes(size_buf);
 
-            let decompressed = if header.encrypted {
-                self.decompress_block(&block, &key, &nonce)?
-            } else {
-                self.decompress_block(&block, &[], &[])?
+            // Vérification de sécurité sur la taille du bloc
+            if block_size == 0 || block_size as usize > self.options.block_size * 4 {
+                return Err(CompressionError::InvalidFormat.into());
+            }
+
+            // Lire le bloc
+            let mut block = vec![0u8; block_size as usize];
+            if let Err(e) = input_file.read_exact(&mut block) {
+                return Err(CompressionError::IoError(io::Error::new(
+                    e.kind(),
+                    format!("Failed to read block at offset {}: {}", processed_bytes, e)
+                )).into());
+            }
+
+            // Décompresser le bloc
+            let decompressed = match self.decompress_block(&block, &key, &nonce) {
+                Ok(data) => data,
+                Err(e) => {
+                    return Err(CompressionError::CompressionError(
+                        format!("Failed to decompress block at offset {}: {}", processed_bytes, e)
+                    ).into());
+                }
             };
 
-            output_file.write_all(&decompressed)?;
+            // Écrire le bloc décompressé
+            if let Err(e) = output_file.write_all(&decompressed) {
+                return Err(CompressionError::IoError(io::Error::new(
+                    e.kind(),
+                    format!("Failed to write decompressed block at offset {}: {}", processed_bytes, e)
+                )).into());
+            }
 
-            processed_bytes += block_size as u64;
+            processed_bytes += block_size as u64 + 4;
 
             // Mise à jour de la progression
             if let Some(ref callback) = &self.progress_callback {
                 let elapsed = start.elapsed().as_secs_f64();
                 let speed = processed_bytes as f64 / elapsed;
-                let remaining = (file_size - processed_bytes) as f64 / speed;
+                let remaining = (file_size - HEADER_SIZE as u64 - processed_bytes) as f64 / speed;
 
                 if let Ok(mut guard) = callback.lock() {
                     guard(ProgressInfo {
                         processed_bytes,
-                        total_bytes: file_size,
+                        total_bytes: file_size - HEADER_SIZE as u64,
                         current_speed: speed,
                         estimated_remaining_time: remaining,
                     });
@@ -279,6 +322,26 @@ impl Compressor {
 
         output_file.flush()?;
         Ok(())
+    }
+
+    pub fn get_metadata<P: AsRef<Path>>(&self, path: P) -> Result<FileMetadata> {
+        let path_ref = path.as_ref();
+        let mut file = BufReader::new(File::open(path_ref)?);
+        let (header, _, _) = self.read_header(&mut file)?;
+        let file_size = std::fs::metadata(path_ref)?.len();
+        
+        Ok(FileMetadata {
+            original_name: header.original_name,
+            original_size: header.original_size,
+            compressed_size: file_size,
+            compression_ratio: header.original_size as f64 / file_size as f64,
+            encrypted: header.encrypted,
+            creation_time: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)?
+                .as_secs(),
+            checksum: String::new(),
+            estimated_time: 0.0,
+        })
     }
 
     fn write_header<W: Write>(&self, writer: &mut W, name: &str, size: u64, salt: &[u8], nonce: &[u8]) -> Result<()> {
@@ -291,13 +354,16 @@ impl Compressor {
         };
 
         let header_json = serde_json::to_string(&header)?;
-        let header_bytes = header_json.as_bytes();
+        let mut header_bytes = header_json.into_bytes();
         
+        // S'assurer que l'en-tête ne dépasse pas la taille maximale
+        if header_bytes.len() > HEADER_SIZE {
+            return Err(CompressionError::InvalidFormat.into());
+        }
+        
+        // Padding jusqu'à HEADER_SIZE
+        header_bytes.resize(HEADER_SIZE, 0);
         writer.write_all(&header_bytes)?;
-        
-        // Padding to HEADER_SIZE
-        let padding = vec![0u8; HEADER_SIZE - header_bytes.len()];
-        writer.write_all(&padding)?;
 
         if self.options.use_encryption {
             writer.write_all(salt)?;
@@ -316,7 +382,8 @@ impl Compressor {
             .position(|&b| b == 0)
             .unwrap_or(HEADER_SIZE);
 
-        let header: FileHeader = serde_json::from_slice(&header_bytes[..json_end])?;
+        let header: FileHeader = serde_json::from_slice(&header_bytes[..json_end])
+            .map_err(|_| CompressionError::InvalidFormat)?;
 
         if header.magic.as_bytes() != MAGIC_BYTES {
             return Err(CompressionError::InvalidFormat.into());
@@ -335,34 +402,44 @@ impl Compressor {
         Ok((header, salt, nonce))
     }
 
-    fn compress_block(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
+    fn compress_block(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
         // Compression avec zstd
-        let mut compressed = Vec::new();
-        let mut encoder = zstd::Encoder::new(&mut compressed, self.options.level as i32)?;
-        encoder.write_all(data)?;
-        encoder.finish()?;
+        let mut compressed = Vec::with_capacity(data.len());
+        {
+            let mut encoder = zstd::Encoder::new(&mut compressed, self.options.level as i32)?;
+            encoder.write_all(data)?;
+            encoder.finish()?;
+        }
 
         // Chiffrement si nécessaire
         if !key.is_empty() {
-            self.encrypt_block(&compressed, key)
+            let cipher = Aes256Gcm::new_from_slice(key)
+                .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
+            let nonce = Nonce::from_slice(nonce);
+            
+            cipher.encrypt(nonce, compressed.as_ref())
+                .map_err(|e| CompressionError::EncryptionError(e.to_string()).into())
         } else {
             Ok(compressed)
         }
     }
 
     fn decompress_block(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
-        // Déchiffrement si nécessaire
-        let data = if !key.is_empty() {
-            self.decrypt_block(data, key, nonce)?
+        let to_decompress = if !key.is_empty() {
+            let cipher = Aes256Gcm::new_from_slice(key)
+                .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
+            let nonce = Nonce::from_slice(nonce);
+            
+            cipher.decrypt(nonce, data)
+                .map_err(|e| CompressionError::EncryptionError(format!("Decryption failed: {}", e)))?
         } else {
             data.to_vec()
         };
 
-        // Décompression
-        let mut decompressed = Vec::new();
-        let mut decoder = zstd::Decoder::new(&data[..])?;
-        decoder.read_to_end(&mut decompressed)?;
-        Ok(decompressed)
+        let mut decoder = zstd::Decoder::new(&to_decompress[..])?;
+        let mut decoded = Vec::with_capacity(self.options.block_size);
+        decoder.read_to_end(&mut decoded)?;
+        Ok(decoded)
     }
 
     // Méthodes privées pour la gestion du chiffrement
@@ -392,42 +469,105 @@ impl Compressor {
         Ok(key)
     }
 
-    fn encrypt_block(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
-
-        let nonce = Nonce::from_slice(&[0u8; NONCE_SIZE]);
-        cipher.encrypt(nonce, data)
-            .map_err(|e| CompressionError::EncryptionError(e.to_string()).into())
-    }
-
-    fn decrypt_block(&self, data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Aes256Gcm::new_from_slice(key)
-            .map_err(|e| CompressionError::EncryptionError(e.to_string()))?;
-
-        let nonce = Nonce::from_slice(nonce);
-        cipher.decrypt(nonce, data)
-            .map_err(|e| CompressionError::EncryptionError(e.to_string()).into())
-    }
-
-    pub fn get_metadata<P: AsRef<Path>>(&self, path: P) -> Result<FileMetadata> {
-        let path_ref = path.as_ref();
-        let mut file = BufReader::new(File::open(path_ref)?);
-        let (header, _, _) = self.read_header(&mut file)?;
-        let file_size = std::fs::metadata(path_ref)?.len();
+    pub fn hide_in_image<P: AsRef<Path>>(&self, archive_path: P, image_path: P, output_path: P) -> Result<()> {
+        let archive_data = std::fs::read(archive_path)?;
+        let img = image::open(image_path)
+            .map_err(|e| CompressionError::SteganographyError(e.to_string()))?;
         
-        Ok(FileMetadata {
-            original_name: header.original_name,
-            original_size: header.original_size,
-            compressed_size: file_size,
-            compression_ratio: header.original_size as f64 / file_size as f64,
-            encrypted: header.encrypted,
-            creation_time: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)?
-                .as_secs(),
-            checksum: String::new(), // Le checksum n'est pas stocké dans l'en-tête
-            estimated_time: 0.0,
-        })
+        let img_rgba = img.to_rgba8();
+        let (width, height) = img_rgba.dimensions();
+        let max_bytes = (width * height * 3) / 8; // 3 bits par pixel (1 par canal RGB)
+        
+        if archive_data.len() as u32 > max_bytes {
+            return Err(CompressionError::SteganographyError(
+                format!("Archive too large for this image. Max size: {} bytes", max_bytes)
+            ).into());
+        }
+        
+        let mut stego_img = RgbaImage::new(width, height);
+        let mut bit_index = 0;
+        
+        // Écrire la taille de l'archive sur les 32 premiers pixels
+        let size_bytes = (archive_data.len() as u32).to_le_bytes();
+        for (i, &byte) in size_bytes.iter().enumerate() {
+            for bit in 0..8 {
+                let x = (i * 8 + bit) as u32 % width;
+                let y = (i * 8 + bit) as u32 / width;
+                let mut pixel = img_rgba.get_pixel(x, y).clone();
+                pixel[0] &= 0xFE;
+                pixel[0] |= ((byte >> bit) & 1) as u8;
+                stego_img.put_pixel(x, y, pixel);
+            }
+        }
+        
+        // Écrire les données de l'archive
+        for &byte in archive_data.iter() {
+            for bit in 0..8 {
+                let pixel_index = 32 + bit_index; // 32 pixels après la taille
+                let x = pixel_index as u32 % width;
+                let y = pixel_index as u32 / width;
+                let mut pixel = img_rgba.get_pixel(x, y).clone();
+                
+                // Modifier le LSB du canal rouge
+                pixel[0] &= 0xFE;
+                pixel[0] |= ((byte >> bit) & 1) as u8;
+                
+                stego_img.put_pixel(x, y, pixel);
+                bit_index += 1;
+            }
+        }
+        
+        // Copier le reste de l'image
+        for y in 0..height {
+            for x in 0..width {
+                if (y * width + x) as usize >= 32 + bit_index {
+                    stego_img.put_pixel(x, y, *img_rgba.get_pixel(x, y));
+                }
+            }
+        }
+        
+        stego_img.save(output_path)
+            .map_err(|e| CompressionError::SteganographyError(e.to_string()).into())
+    }
+
+    pub fn extract_from_image<P: AsRef<Path>>(&self, image_path: P, output_path: P) -> Result<()> {
+        let img = image::open(image_path)
+            .map_err(|e| CompressionError::SteganographyError(e.to_string()))?;
+        let img_rgba = img.to_rgba8();
+        let (width, height) = img_rgba.dimensions();
+        
+        // Lire la taille de l'archive
+        let mut size_bytes = [0u8; 4];
+        for (i, byte) in size_bytes.iter_mut().enumerate() {
+            for bit in 0..8 {
+                let x = (i * 8 + bit) as u32 % width;
+                let y = (i * 8 + bit) as u32 / width;
+                let pixel = img_rgba.get_pixel(x, y);
+                *byte |= ((pixel[0] & 1) as u8) << bit;
+            }
+        }
+        let archive_size = u32::from_le_bytes(size_bytes) as usize;
+        
+        // Vérifier que la taille est valide
+        let max_bytes = (width * height * 3) / 8;
+        if archive_size as u32 > max_bytes {
+            return Err(CompressionError::SteganographyError("Invalid archive size in image".into()).into());
+        }
+        
+        // Extraire les données de l'archive
+        let mut archive_data = vec![0u8; archive_size];
+        for (byte_idx, byte) in archive_data.iter_mut().enumerate() {
+            for bit in 0..8 {
+                let pixel_index = 32 + (byte_idx * 8 + bit); // 32 pixels après la taille
+                let x = pixel_index as u32 % width;
+                let y = pixel_index as u32 / width;
+                let pixel = img_rgba.get_pixel(x, y);
+                *byte |= ((pixel[0] & 1) as u8) << bit;
+            }
+        }
+        
+        std::fs::write(output_path, archive_data)?;
+        Ok(())
     }
 }
 

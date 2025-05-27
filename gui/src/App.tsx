@@ -27,6 +27,8 @@ import {
   DialogActions,
   FormControlLabel,
   FormGroup,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Folder as FolderIcon,
@@ -35,6 +37,7 @@ import {
   Unarchive as UnarchiveIcon,
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import { listen } from '@tauri-apps/api/event';
 
@@ -45,6 +48,8 @@ interface CompressionOptions {
   dictionary_size: number;
   use_encryption: boolean;
   password?: string;
+  use_steganography: boolean;
+  steganography_image?: string;
 }
 
 interface FileMetadata {
@@ -93,6 +98,10 @@ function App() {
     input_path: string;
     output_path: string;
   } | null>(null);
+  const [currentTab, setCurrentTab] = useState(0);
+  const [useSteganography, setUseSteganography] = useState(false);
+  const [steganographyImage, setSteganographyImage] = useState('');
+  const [steganographyOutput, setSteganographyOutput] = useState('');
 
   const handleError = useCallback((e: any) => {
     console.error('Operation failed:', e);
@@ -185,6 +194,7 @@ function App() {
         dictionary_size: 64 * 1024 * 1024,
         use_encryption: useEncryption,
         password: useEncryption ? password : undefined,
+        use_steganography: false,
       };
 
       const metadata = await invoke<FileMetadata>('compress', {
@@ -281,6 +291,51 @@ function App() {
     return `${hours}h ${minutes}m`;
   };
 
+  const handleSteganographyHide = async () => {
+    try {
+      setIsProcessing(true);
+      setError(null);
+      await invoke('hide_in_image', {
+        request: {
+          archive_path: inputPath,
+          image_path: steganographyImage,
+          output_path: steganographyOutput,
+        },
+      });
+      setIsProcessing(false);
+    } catch (e) {
+      setError(e as string);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSteganographyExtract = async () => {
+    try {
+      setIsProcessing(true);
+      setError(null);
+      await invoke('extract_from_image', {
+        request: {
+          image_path: steganographyImage,
+          output_path: outputPath,
+        },
+      });
+      setIsProcessing(false);
+    } catch (e) {
+      setError(e as string);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSteganographyImageSelect = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }],
+    });
+    if (selected) {
+      setSteganographyImage(selected as string);
+    }
+  };
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -289,159 +344,322 @@ function App() {
           NTK Ultra-Compression
         </Typography>
 
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ mb: 3 }}>
-            <Button
-              variant="contained"
-              startIcon={<FolderIcon />}
-              onClick={selectInputFile}
-              disabled={isProcessing}
-              fullWidth
-              sx={{ mb: 1 }}
-            >
-              Select Input File
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              {inputPath || 'No file selected'}
-            </Typography>
-          </Box>
+        <Tabs value={currentTab} onChange={(_, newValue) => setCurrentTab(newValue)} sx={{ mb: 3 }}>
+          <Tab label="Compression" />
+          <Tab label="Stéganographie" />
+        </Tabs>
 
-          <Box sx={{ mb: 3 }}>
-            <Button
-              variant="contained"
-              startIcon={<SaveIcon />}
-              onClick={selectOutputFile}
-              disabled={isProcessing}
-              fullWidth
-              sx={{ mb: 1 }}
-            >
-              Select Output Location
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              {outputPath || 'No location selected'}
-            </Typography>
-          </Box>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
-          {!isCompressed && (
-            <>
+        {currentTab === 0 && (
+          <>
+            <Paper sx={{ p: 3, mb: 3 }}>
               <Box sx={{ mb: 3 }}>
-                <Typography gutterBottom>
-                  Compression Level: {compressionLevel}
-                </Typography>
-                <Slider
-                  value={compressionLevel}
-                  onChange={(_, value) => setCompressionLevel(value as number)}
-                  min={1}
-                  max={22}
-                  marks={[
-                    { value: 1, label: '1' },
-                    { value: 6, label: '6' },
-                    { value: 12, label: '12' },
-                    { value: 19, label: '19' },
-                    { value: 22, label: '22' },
-                  ]}
+                <Button
+                  variant="contained"
+                  startIcon={<FolderIcon />}
+                  onClick={selectInputFile}
                   disabled={isProcessing}
-                />
+                  fullWidth
+                  sx={{ mb: 1 }}
+                >
+                  Select Input File
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {inputPath || 'No file selected'}
+                </Typography>
               </Box>
 
               <Box sx={{ mb: 3 }}>
-                <FormGroup>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={useEncryption}
-                        onChange={(e) => setUseEncryption(e.target.checked)}
-                        disabled={isProcessing}
-                        icon={<LockOpenIcon />}
-                        checkedIcon={<LockIcon />}
-                      />
-                    }
-                    label="Enable Encryption"
-                  />
-                </FormGroup>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={selectOutputFile}
+                  disabled={isProcessing}
+                  fullWidth
+                  sx={{ mb: 1 }}
+                >
+                  Select Output Location
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {outputPath || 'No location selected'}
+                </Typography>
               </Box>
-            </>
-          )}
 
-          {(useEncryption || (isCompressed && metadata?.encrypted)) && (
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                type="password"
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required={useEncryption || (isCompressed && metadata?.encrypted)}
-                disabled={isProcessing}
-                fullWidth
-                error={useEncryption && !password}
-                helperText={useEncryption && !password ? "Password is required for encryption" : ""}
-                InputProps={{
-                  startAdornment: metadata?.encrypted ? <LockIcon color="primary" /> : useEncryption ? <LockIcon /> : undefined,
-                }}
-              />
-            </Box>
-          )}
+              {!isCompressed && (
+                <>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography gutterBottom>
+                      Compression Level: {compressionLevel}
+                    </Typography>
+                    <Slider
+                      value={compressionLevel}
+                      onChange={(_, value) => setCompressionLevel(value as number)}
+                      min={1}
+                      max={22}
+                      marks={[
+                        { value: 1, label: '1' },
+                        { value: 6, label: '6' },
+                        { value: 12, label: '12' },
+                        { value: 19, label: '19' },
+                        { value: 22, label: '22' },
+                      ]}
+                      disabled={isProcessing}
+                    />
+                  </Box>
 
-          {error && (
-            <Box sx={{ mb: 3 }}>
-              <Alert severity="error">{error}</Alert>
-            </Box>
-          )}
+                  <Box sx={{ mb: 3 }}>
+                    <FormGroup>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={useEncryption}
+                            onChange={(e) => setUseEncryption(e.target.checked)}
+                            disabled={isProcessing}
+                            icon={<LockOpenIcon />}
+                            checkedIcon={<LockIcon />}
+                          />
+                        }
+                        label="Enable Encryption"
+                      />
+                    </FormGroup>
+                  </Box>
+                </>
+              )}
 
-          {progress && (
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" gutterBottom>
-                {formatSize(progress.processed_bytes)} / {formatSize(progress.total_bytes)} 
-                ({progress.percent.toFixed(1)}%)
+              {(useEncryption || (isCompressed && metadata?.encrypted)) && (
+                <Box sx={{ mb: 3 }}>
+                  <TextField
+                    type="password"
+                    label="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required={useEncryption || (isCompressed && metadata?.encrypted)}
+                    disabled={isProcessing}
+                    fullWidth
+                    error={useEncryption && !password}
+                    helperText={useEncryption && !password ? "Password is required for encryption" : ""}
+                    InputProps={{
+                      startAdornment: metadata?.encrypted ? <LockIcon color="primary" /> : useEncryption ? <LockIcon /> : undefined,
+                    }}
+                  />
+                </Box>
+              )}
+
+              {progress && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" gutterBottom>
+                    {formatSize(progress.processed_bytes)} / {formatSize(progress.total_bytes)} 
+                    ({progress.percent.toFixed(1)}%)
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={progress.percent} 
+                    sx={{ mb: 1 }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    Speed: {progress.speed_mbps.toFixed(1)} MB/s
+                    {' • '}
+                    Remaining: {formatTime(progress.remaining_seconds)}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={isProcessing ? <CircularProgress size={24} /> : <CompressIcon />}
+                  onClick={handleCompress}
+                  disabled={
+                    isProcessing ||
+                    !inputPath ||
+                    !outputPath ||
+                    (useEncryption && !password) ||
+                    isCompressed
+                  }
+                  fullWidth
+                >
+                  Compress
+                </Button>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  startIcon={isProcessing ? <CircularProgress size={24} /> : <UnarchiveIcon />}
+                  onClick={handleDecompress}
+                  disabled={
+                    isProcessing ||
+                    !inputPath ||
+                    !outputPath ||
+                    !isCompressed ||
+                    (metadata?.encrypted && !password)
+                  }
+                  fullWidth
+                >
+                  {metadata?.encrypted ? 'Decrypt and Decompress' : 'Decompress'}
+                </Button>
+              </Box>
+            </Paper>
+
+            {metadata && (
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  File Information
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>File Name</TableCell>
+                        <TableCell>{metadata.original_name}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Original Size</TableCell>
+                        <TableCell>{formatSize(metadata.original_size)}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Compressed Size</TableCell>
+                        <TableCell>{formatSize(metadata.compressed_size)}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Compression Ratio</TableCell>
+                        <TableCell>{metadata.compression_ratio.toFixed(2)}x</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Encrypted</TableCell>
+                        <TableCell>
+                          {metadata.encrypted ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LockIcon color="primary" />
+                              Yes
+                            </Box>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LockOpenIcon />
+                              No
+                            </Box>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Creation Time</TableCell>
+                        <TableCell>{new Date(metadata.creation_time * 1000).toLocaleString()}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Checksum</TableCell>
+                        <TableCell
+                          sx={{
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          {metadata.checksum}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            )}
+          </>
+        )}
+
+        {currentTab === 1 && (
+          <>
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Stéganographie
               </Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={progress.percent} 
-                sx={{ mb: 1 }}
-              />
-              <Typography variant="body2" color="text.secondary">
-                Speed: {progress.speed_mbps.toFixed(1)} MB/s
-                {' • '}
-                Remaining: {formatTime(progress.remaining_seconds)}
-              </Typography>
-            </Box>
-          )}
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={isProcessing ? <CircularProgress size={24} /> : <CompressIcon />}
-              onClick={handleCompress}
-              disabled={
-                isProcessing ||
-                !inputPath ||
-                !outputPath ||
-                (useEncryption && !password) ||
-                isCompressed
-              }
-              fullWidth
-            >
-              Compress
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={isProcessing ? <CircularProgress size={24} /> : <UnarchiveIcon />}
-              onClick={handleDecompress}
-              disabled={
-                isProcessing ||
-                !inputPath ||
-                !outputPath ||
-                !isCompressed ||
-                (metadata?.encrypted && !password)
-              }
-              fullWidth
-            >
-              {metadata?.encrypted ? 'Decrypt and Decompress' : 'Decompress'}
-            </Button>
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<FolderIcon />}
+                  onClick={selectInputFile}
+                  disabled={isProcessing}
+                  sx={{ mr: 2 }}
+                >
+                  Sélectionner l'archive
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {inputPath || 'Aucun fichier sélectionné'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<ImageIcon />}
+                  onClick={handleSteganographyImageSelect}
+                  disabled={isProcessing}
+                  sx={{ mr: 2 }}
+                >
+                  Sélectionner l'image
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {steganographyImage || 'Aucune image sélectionnée'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={selectOutputFile}
+                  disabled={isProcessing}
+                  sx={{ mr: 2 }}
+                >
+                  Sélectionner la destination
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  {outputPath || 'Aucune destination sélectionnée'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSteganographyHide}
+                  disabled={isProcessing || !inputPath || !steganographyImage || !steganographyOutput}
+                  startIcon={<ImageIcon />}
+                >
+                  Cacher l'archive
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleSteganographyExtract}
+                  disabled={isProcessing || !steganographyImage || !outputPath}
+                  startIcon={<UnarchiveIcon />}
+                >
+                  Extraire l'archive
+                </Button>
+              </Box>
+            </Paper>
+          </>
+        )}
+
+        {isProcessing && (
+          <Box sx={{ width: '100%', mb: 3 }}>
+            <LinearProgress
+              variant="determinate"
+              value={progress ? (progress.processed_bytes / progress.total_bytes) * 100 : 0}
+            />
+            <Typography variant="body2" color="text.secondary" align="center">
+              {progress
+                ? `${Math.round((progress.processed_bytes / progress.total_bytes) * 100)}% - ${Math.round(
+                    progress.speed_mbps
+                  )} MB/s - ${Math.round(progress.remaining_seconds)}s restantes`
+                : 'Traitement en cours...'}
+            </Typography>
           </Box>
-        </Paper>
+        )}
 
         {metadata && (
           <Paper sx={{ p: 3 }}>
