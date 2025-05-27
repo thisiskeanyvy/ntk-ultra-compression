@@ -5,8 +5,9 @@
 
 use std::path::Path;
 use std::fs::File;
-use std::io::{self, Read, Write, BufReader, BufWriter};
-use std::time::SystemTime;
+use std::io::{self, Read, Write, BufReader, BufWriter, Seek, SeekFrom};
+use std::time::{SystemTime, Instant};
+use std::sync::{Arc, Mutex};
 use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
 
 use anyhow::{Result, Context};
@@ -22,7 +23,7 @@ use aes_gcm::{
 // Constantes pour le format de fichier
 const MAGIC_BYTES: &[u8] = b"NTK1";
 const HEADER_SIZE: usize = 512;
-const DEFAULT_BLOCK_SIZE: usize = 1024 * 1024; // 1MB
+const DEFAULT_BLOCK_SIZE: usize = 16 * 1024 * 1024; // 16MB pour de meilleures performances
 const SALT_SIZE: usize = 32;
 const KEY_SIZE: usize = 32;
 const NONCE_SIZE: usize = 12;
@@ -41,7 +42,7 @@ pub enum CompressionError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionOptions {
-    /// Niveau de compression (1-9)
+    /// Niveau de compression (1-22 pour zstd)
     pub level: u32,
     /// Taille des blocs en octets
     pub block_size: usize,
@@ -55,19 +56,6 @@ pub struct CompressionOptions {
     pub password: Option<String>,
 }
 
-impl Default for CompressionOptions {
-    fn default() -> Self {
-        Self {
-            level: 6,
-            block_size: DEFAULT_BLOCK_SIZE,
-            threads: num_cpus::get(),
-            dictionary_size: 32 * 1024 * 1024, // 32MB
-            use_encryption: false,
-            password: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {
     pub original_name: String,
@@ -77,6 +65,7 @@ pub struct FileMetadata {
     pub encrypted: bool,
     pub creation_time: u64,
     pub checksum: String,
+    pub estimated_time: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,16 +77,51 @@ struct FileHeader {
     original_size: u64,
 }
 
+#[derive(Debug, Clone)]
+pub struct ProgressInfo {
+    pub processed_bytes: u64,
+    pub total_bytes: u64,
+    pub current_speed: f64,
+    pub estimated_remaining_time: f64,
+}
+
+pub type ProgressCallback = Arc<Mutex<dyn FnMut(ProgressInfo) + Send + 'static>>;
+
 pub struct Compressor {
     options: CompressionOptions,
+    progress_callback: Option<Arc<Mutex<dyn FnMut(ProgressInfo) + Send + 'static>>>,
+}
+
+impl Default for CompressionOptions {
+    fn default() -> Self {
+        Self {
+            level: 19, // Niveau de compression élevé par défaut
+            block_size: DEFAULT_BLOCK_SIZE,
+            threads: num_cpus::get(),
+            dictionary_size: 64 * 1024 * 1024, // 64MB pour de meilleurs ratios
+            use_encryption: false,
+            password: None,
+        }
+    }
 }
 
 impl Compressor {
     pub fn new(options: CompressionOptions) -> Self {
-        Self { options }
+        Self {
+            options,
+            progress_callback: None,
+        }
+    }
+
+    pub fn set_progress_callback<F>(&mut self, callback: F)
+    where
+        F: FnMut(ProgressInfo) + Send + 'static,
+    {
+        self.progress_callback = Some(Arc::new(Mutex::new(callback)));
     }
 
     pub fn compress<P: AsRef<Path>>(&self, input: P, output: P) -> Result<FileMetadata> {
+        let start = Instant::now();
         let input_path = input.as_ref();
         let output_path = output.as_ref();
 
@@ -127,11 +151,40 @@ impl Compressor {
         };
 
         // Diviser le fichier en blocs
-        let chunks: Vec<_> = mmap.chunks(self.options.block_size).collect();
+        let chunk_size = self.options.block_size;
+        let chunks: Vec<_> = mmap.chunks(chunk_size).collect();
         
-        // Compresser les blocs en parallèle
+        // Compresser les blocs en parallèle avec suivi de progression
+        let processed_bytes = Arc::new(Mutex::new(0u64));
+        let start = Arc::new(Instant::now());
+
         let compressed_blocks: Vec<_> = chunks.par_iter()
-            .map(|chunk| self.compress_block(chunk, &key))
+            .map(|chunk| {
+                let result = self.compress_block(chunk, &key);
+                
+                // Mise à jour de la progression
+                if let Some(ref callback) = self.progress_callback {
+                    let mut bytes = processed_bytes.lock().unwrap();
+                    *bytes += chunk.len() as u64;
+                    
+                    let elapsed = start.elapsed().as_secs_f64();
+                    let speed = *bytes as f64 / elapsed;
+                    let remaining = (input_size - *bytes) as f64 / speed;
+                    
+                    let info = ProgressInfo {
+                        processed_bytes: *bytes,
+                        total_bytes: input_size,
+                        current_speed: speed,
+                        estimated_remaining_time: remaining,
+                    };
+                    
+                    if let Ok(mut callback) = callback.lock() {
+                        callback(info);
+                    }
+                }
+                
+                result
+            })
             .collect::<Result<_>>()?;
 
         // Écrire l'en-tête et les blocs
@@ -149,6 +202,7 @@ impl Compressor {
 
         // Calculer le checksum final
         let checksum = blake3::hash(&mmap);
+        let elapsed = start.elapsed().as_secs_f64();
 
         Ok(FileMetadata {
             original_name: input_name,
@@ -160,6 +214,7 @@ impl Compressor {
                 .duration_since(SystemTime::UNIX_EPOCH)?
                 .as_secs(),
             checksum: hex::encode(checksum.as_bytes()),
+            estimated_time: elapsed,
         })
     }
 
@@ -184,13 +239,42 @@ impl Compressor {
             vec![]
         };
 
+        let file_size = input_file.seek(SeekFrom::End(0))?;
+        input_file.seek(SeekFrom::Start(HEADER_SIZE as u64))?;
+
+        let mut processed_bytes = 0u64;
+        let start = Instant::now();
+
         // Lire et décompresser les blocs
         while let Ok(block_size) = input_file.read_u32::<LittleEndian>() {
             let mut block = vec![0u8; block_size as usize];
             input_file.read_exact(&mut block)?;
 
-            let decompressed = self.decompress_block(&block, &key, &nonce)?;
+            let decompressed = if header.encrypted {
+                self.decompress_block(&block, &key, &nonce)?
+            } else {
+                self.decompress_block(&block, &[], &[])?
+            };
+
             output_file.write_all(&decompressed)?;
+
+            processed_bytes += block_size as u64;
+
+            // Mise à jour de la progression
+            if let Some(ref callback) = &self.progress_callback {
+                let elapsed = start.elapsed().as_secs_f64();
+                let speed = processed_bytes as f64 / elapsed;
+                let remaining = (file_size - processed_bytes) as f64 / speed;
+
+                if let Ok(mut guard) = callback.lock() {
+                    guard(ProgressInfo {
+                        processed_bytes,
+                        total_bytes: file_size,
+                        current_speed: speed,
+                        estimated_remaining_time: remaining,
+                    });
+                }
+            }
         }
 
         output_file.flush()?;
@@ -342,6 +426,7 @@ impl Compressor {
                 .duration_since(SystemTime::UNIX_EPOCH)?
                 .as_secs(),
             checksum: String::new(), // Le checksum n'est pas stocké dans l'en-tête
+            estimated_time: 0.0,
         })
     }
 }
