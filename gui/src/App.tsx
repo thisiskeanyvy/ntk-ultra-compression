@@ -65,9 +65,9 @@ interface FileMetadata {
 interface ProgressEvent {
   processed_bytes: number;
   total_bytes: number;
+  percent: number;
   speed_mbps: number;
   remaining_seconds: number;
-  percent: number;
 }
 
 const darkTheme = createTheme({
@@ -110,17 +110,20 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const unlistenCompress = listen<ProgressEvent>('compression-progress', (event) => {
+    // Configurer le gestionnaire de progression au démarrage
+    invoke('set_progress_handler')
+      .catch(e => console.error('Failed to set progress handler:', e));
+
+    // Écouter les événements de progression
+    const unsubscribe = listen<ProgressEvent>('progress', (event) => {
       setProgress(event.payload);
     });
 
-    const unlistenDecompress = listen<ProgressEvent>('decompression-progress', (event) => {
-      setProgress(event.payload);
-    });
-
+    // Nettoyer lors du démontage
     return () => {
-      unlistenCompress.then(fn => fn());
-      unlistenDecompress.then(fn => fn());
+      invoke('clear_progress_handler')
+        .catch(e => console.error('Failed to clear progress handler:', e));
+      unsubscribe.then(fn => fn());
     };
   }, []);
 
@@ -270,25 +273,29 @@ function App() {
 
   const formatSize = (bytes: number) => {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let value = bytes;
-    let unit = 0;
-    while (value >= 1024 && unit < units.length - 1) {
-      value /= 1024;
-      unit++;
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
-    return `${value.toFixed(2)} ${units[unit]}`;
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
   const formatTime = (seconds: number) => {
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    if (seconds < 3600) {
+    if (seconds < 60) {
+      return `${Math.round(seconds)}s`;
+    } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
-      const secs = Math.round(seconds % 60);
-      return `${minutes}m ${secs}s`;
+      const remainingSeconds = Math.round(seconds % 60);
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${minutes}m`;
     }
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
   };
 
   const handleSteganographyHide = async () => {
@@ -450,21 +457,40 @@ function App() {
                 </Box>
               )}
 
-              {progress && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" gutterBottom>
-                    {formatSize(progress.processed_bytes)} / {formatSize(progress.total_bytes)} 
-                    ({progress.percent.toFixed(1)}%)
+              {isProcessing && progress && (
+                <Box sx={{ width: '100%', mt: 3, mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    {isCompressed ? 'Décompression en cours...' : 'Compression en cours...'}
                   </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatSize(progress.processed_bytes)} / {formatSize(progress.total_bytes)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {progress.speed_mbps.toFixed(1)} MB/s
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatTime(progress.remaining_seconds)} restant
+                    </Typography>
+                  </Box>
                   <LinearProgress 
                     variant="determinate" 
                     value={progress.percent} 
-                    sx={{ mb: 1 }}
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 4,
+                      },
+                    }}
                   />
-                  <Typography variant="body2" color="text.secondary">
-                    Speed: {progress.speed_mbps.toFixed(1)} MB/s
-                    {' • '}
-                    Remaining: {formatTime(progress.remaining_seconds)}
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    align="center" 
+                    sx={{ mt: 1 }}
+                  >
+                    {Math.round(progress.percent)}%
                   </Typography>
                 </Box>
               )}
@@ -701,22 +727,6 @@ function App() {
               </Box>
             </Paper>
           </>
-        )}
-
-        {isProcessing && (
-          <Box sx={{ width: '100%', mb: 3 }}>
-            <LinearProgress
-              variant="determinate"
-              value={progress ? (progress.processed_bytes / progress.total_bytes) * 100 : 0}
-            />
-            <Typography variant="body2" color="text.secondary" align="center">
-              {progress
-                ? `${Math.round((progress.processed_bytes / progress.total_bytes) * 100)}% - ${Math.round(
-                    progress.speed_mbps
-                  )} MB/s - ${Math.round(progress.remaining_seconds)}s restantes`
-                : 'Traitement en cours...'}
-            </Typography>
-          </Box>
         )}
 
         <Dialog 

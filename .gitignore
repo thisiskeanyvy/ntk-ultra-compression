@@ -1,13 +1,29 @@
+# Rust
 /target
-/dist
 **/*.rs.bk
-*.pdb
+Cargo.lock
+
+# Node.js
+/gui/node_modules
+/gui/dist
+
+# Build
+/build
+/gui/src-tauri/target
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-node_modules
-.env
+Thumbs.db
+
+*.pdb
 *.log
 *.lock
-!Cargo.lock
 
 # IDE specific files
 .vscode/
