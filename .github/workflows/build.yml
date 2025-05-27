@@ -20,22 +20,22 @@ jobs:
       matrix:
         platform:
           - name: Linux
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            binary_path: target/release/ntk-ultra-compression
-            asset_name: ntk-ultra-compression-linux-amd64
+            artifact_path: target/release/bundle/deb/ntk-ultra-compression*.deb
+            asset_name: ntk-ultra-compression-linux-amd64.deb
           
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_path: target/release/ntk-ultra-compression.exe
-            asset_name: ntk-ultra-compression-windows-amd64.exe
+            artifact_path: target/release/bundle/msi/NTK*.msi
+            asset_name: ntk-ultra-compression-windows-amd64.msi
           
           - name: macOS
             os: macos-latest
-            target: x86_64-apple-darwin
-            binary_path: target/release/ntk-ultra-compression
-            asset_name: ntk-ultra-compression-macos-amd64
+            target: aarch64-apple-darwin
+            artifact_path: target/release/bundle/dmg/NTK*.dmg
+            asset_name: ntk-ultra-compression-macos-arm64.dmg
 
     steps:
       - name: Checkout repository
@@ -57,10 +57,23 @@ jobs:
           cache-dependency-path: gui/package-lock.json
 
       - name: Install Linux dependencies
-        if: matrix.platform.os == 'ubuntu-20.04'
+        if: matrix.platform.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev
 
       - name: Install dependencies
         working-directory: gui
@@ -82,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform.asset_name }}
-          path: ${{ matrix.platform.binary_path }}
+          path: ${{ matrix.platform.artifact_path }}
           if-no-files-found: error
 
   release:
@@ -90,6 +103,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     
     steps:
       - name: Download artifacts
@@ -100,10 +115,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/ntk-ultra-compression-linux-amd64/ntk-ultra-compression-linux-amd64
-            artifacts/ntk-ultra-compression-windows-amd64.exe/ntk-ultra-compression-windows-amd64.exe
-            artifacts/ntk-ultra-compression-macos-amd64/ntk-ultra-compression-macos-amd64
+          files: artifacts/**/*
           draft: true
           prerelease: false
           generate_release_notes: true

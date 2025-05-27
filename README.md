@@ -31,20 +31,34 @@ Un logiciel de compression ultra-performant avec chiffrement et stéganographie.
 
 ## Démonstration
 
-### Interface principale
-![Interface principale](docs/demo/screen-1.png)
+<div style="display: flex; gap: 20px; margin-bottom: 20px;">
+  <div style="flex: 1;">
+    <h3>Interface principale</h3>
+    <img src="docs/demo/screen-1.png" alt="Interface principale" width="400"/>
+  </div>
+  <div style="flex: 1;">
+    <h3>Informations sur l'archive</h3>
+    <img src="docs/demo/screen-2.png" alt="Informations sur l'archive" width="400"/>
+  </div>
+</div>
 
-### Informations sur l'archive
-![Informations sur l'archive](docs/demo/screen-2.png)
+<div style="display: flex; gap: 20px; margin-bottom: 20px;">
+  <div style="flex: 1;">
+    <h3>Progression en temps réel</h3>
+    <img src="docs/demo/screen-3.png" alt="Progression en temps réel" width="400"/>
+  </div>
+  <div style="flex: 1;">
+    <h3>Compression avec chiffrement</h3>
+    <img src="docs/demo/screen-4.png" alt="Compression avec chiffrement" width="400"/>
+  </div>
+</div>
 
-### Progression en temps réel
-![Progression en temps réel](docs/demo/screen-3.png)
-
-### Compression avec chiffrement
-![Compression avec chiffrement](docs/demo/screen-4.png)
-
-### Stéganographie - Extraire/Cacher
-![Stéganographie - Extraire/Cacher](docs/demo/screen-5.png)
+<div style="display: flex; justify-content: center; margin-bottom: 20px;">
+  <div style="max-width: 400px;">
+    <h3>Stéganographie - Extraire/Cacher</h3>
+    <img src="docs/demo/screen-5.png" alt="Stéganographie - Extraire/Cacher" width="400"/>
+  </div>
+</div>
 
 ## Installation
 
