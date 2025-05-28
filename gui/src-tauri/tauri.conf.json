@@ -39,23 +39,7 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
-      ],
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "entitlements": null,
-        "providerShortName": null,
-        "dmg": {
-          "title": "NTK Ultra-Compression",
-          "background": null,
-          "window": {
-            "width": 540,
-            "height": 380
-          }
-        }
-      }
+      ]
     },
     "security": {
       "csp": null
