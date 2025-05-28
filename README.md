@@ -106,7 +106,6 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 - Nathan Pelletti (@nathanpel)
 - Thomas Demesse (@thomdem)
 - Keany Vy Khun (@thisiskeanyvy)
-- Litissia Ben Mohand (@litissia28)
 
 ## Remerciements
 

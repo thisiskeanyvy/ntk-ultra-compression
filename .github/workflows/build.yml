@@ -34,7 +34,7 @@ jobs:
           - name: macOS
             os: macos-latest
             target: aarch64-apple-darwin
-            artifact_path: target/release/bundle/dmg/NTK*.dmg
+            artifact_path: target/aarch64-apple-darwin/release/bundle/dmg/NTK*.dmg
             asset_name: ntk-ultra-compression-macos-arm64.dmg
 
     steps:
