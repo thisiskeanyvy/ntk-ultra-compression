@@ -75,6 +75,16 @@ jobs:
             libxcb-shape0-dev \
             libxcb-xfixes0-dev
 
+      - name: Install macOS dependencies
+        if: matrix.platform.os == 'macos-latest'
+        run: |
+          rustup target add aarch64-apple-darwin
+          brew install create-dmg
+
+      - name: Fix Cargo warnings
+        if: matrix.platform.os == 'macos-latest'
+        run: cargo fix --lib -p ntk-core --allow-dirty
+
       - name: Install dependencies
         working-directory: gui
         run: npm install
@@ -83,6 +93,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
         with:
           projectPath: gui
           tagName: ${{ github.ref_name }}
@@ -90,6 +105,7 @@ jobs:
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
+          args: ${{ matrix.platform.os == 'macos-latest' && '--target aarch64-apple-darwin' || '' }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
